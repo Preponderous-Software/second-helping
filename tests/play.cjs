@@ -62,7 +62,10 @@ async function run(name,ctxOpts){
   if(st.phase==="pull")await useAt(pl[st.short[0]],SPOT,Math.PI/2);
   else if(st.held==null)await useAt(pl[st.pulled],SPOT,Math.PI/2);
   else if(st.want)await useAt(pl[st.want],SPOT,Math.PI/2);
-  else{await useAt(pl.apple,SPOT,Math.PI/2);await p.waitForTimeout(30);assert.notEqual((await s()).held,null,"a spent ballot can't go on a tower");await p.evaluate(()=>__fair.tp(5.9,-3.9,Math.PI/2,0.3));await p.waitForTimeout(200);if(!crateShot){await shot("d4-2-crate");crateShot=true}await useAt(...CRATE)}
+  else{
+   // beside any tower, a spent ballot offers the crate or nothing: Cherry stood next to the crate and took the prompt
+   await p.evaluate(([x])=>{__fair.tp(x,-3.9,Math.PI/2);return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(r))))},[pl.cherry]);assert.equal(await p.evaluate(()=>__fair.use()),"Put it in the crate");
+   await p.evaluate(()=>__fair.tp(5.9,-3.9,Math.PI/2,0.3));await p.waitForTimeout(200);if(!crateShot){await shot("d4-2-crate");crateShot=true}await useAt(...CRATE)}
   await p.waitForTimeout(30)}
  console.log("bar needed values",[...bars]);assert.deepEqual([...bars].sort((a,b)=>b-a),[11,10,9]);
  await open();console.log(await p.textContent("#panel-title"));await ok();await closed();
@@ -91,7 +94,7 @@ async function run(name,ctxOpts){
  await skip();await wait(p,()=>__fair.G.day===3&&__fair.G.sun&&!document.getElementById("panel").hidden);await ok();await closed();
  await visit("Mabel");await p.click("#panel-buttons .primary");await p.click("#panel-buttons .btn:last-child");await wait(p,()=>document.getElementById("panel").hidden);
  await useAt(0,-1.7,Math.PI/2);await wait(p,()=>__fair.G.counting);await p.click("#skip");await p.waitForTimeout(100);assert.equal(await p.isVisible("#panel"),false,"a running count can't be skipped");await wait(p,()=>__fair.G.step==="result");await open();await ok();await closed();
- await skip();await wait(p,()=>__fair.G.day===4&&__fair.G.sat&&!document.getElementById("panel").hidden);await p.click("#skip");await p.waitForTimeout(100);assert.match(await p.textContent("#toast"),/Close this first/);await ok();await closed();
+ await skip();await wait(p,()=>__fair.G.day===4&&__fair.G.sat&&!document.getElementById("panel").hidden);await p.click("#skip");await p.waitForTimeout(100);assert.match(await p.textContent("#toast"),/Close this panel/);await ok();await closed();
  await skip();await wait(p,()=>__fair.G.day===5&&__fair.G.lab&&!document.getElementById("panel").hidden);await ok();await closed();
  await p.click("#skip");await open();await p.click("#panel-buttons .primary");await wait(p,()=>__fair.G.mode==="end");assert.equal(await p.isVisible("#skip"),false);
  const saved=await p.evaluate(()=>JSON.parse(localStorage.getItem("second-helping.v1")));assert.equal(saved.reached,5);assert.equal(saved.met.length>0,true,"the ledger survives skipping");
