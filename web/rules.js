@@ -178,7 +178,7 @@
       if (s.phase !== "pull") return {ok: false};
       if (!s.active.includes(pie)) return {ok: false, why: `${NAMES[pie]} is already out.`};
       const low = s.shortest();
-      if (!low.includes(pie)) return {ok: false, why: `${NAMES[pie]} isn't the shortest tower. Only last place goes out.`};
+      if (!low.includes(pie)) return {ok: false, why: `${NAMES[pie]} isn't the shortest tower.`};
       const out = low.length > 1 ? DRAW_ORDER.find((p) => low.includes(p)) : pie;
       s.pulled = out;
       s.active = s.active.filter((p) => p !== out);
@@ -196,18 +196,18 @@
       if (s.held == null) return {ok: false};
       const want = s.nextPie(s.held);
       if (pie === "crate") {
-        if (want) return {ok: false, why: `This voter still has ${NAMES[want]} standing. It stays in the count.`};
+        if (want) return {ok: false, why: `${NAMES[want]} is still in. Drop it there.`};
         crate.push(s.held);
         s.held = null; s.moved += 1;
         if (!s.queue.length) settle();
         return {ok: true};
       }
-      if (want == null) return {ok: false, why: "This voter ranked nothing else that's still standing. It goes in the crate."};
+      if (want == null) return {ok: false, why: "No pies left. It goes in the crate."};
       if (pie !== want) {
         const b = ballots[s.held];
         const why = !s.active.includes(pie)
-          ? `${NAMES[pie]} is out. Skip it and find this voter's next pie still standing.`
-          : `This voter ranked another standing pie ahead of ${NAMES[pie]}. Read down the slip from the top.`;
+          ? `${NAMES[pie]} is out. Find the next pie still in.`
+          : `Wrong pie. Read the slip from the top.`;
         return {ok: false, why, ballot: b};
       }
       const i = s.held;
@@ -285,9 +285,9 @@
     if (at >= 0) {
       const r = rounds[at];
       const gap = Math.min(...r.active.filter((p) => p !== "pecan").map((p) => r.piles[p].length)) - r.piles.pecan.length;
-      return `Pecan went out in round ${at + 1}, ${gap} short of the next tower. Pecan has to outlast someone first. Whose ballots move before Pecan's do?`;
+      return `Pecan went out in round ${at + 1}, ${gap} behind the next tower. Whose ballots move before Pecan's?`;
     }
-    return `Pecan reached the final and lost ${last.piles.pecan.length} to ${last.piles[last.winner].length}. Where did the last tower's ballots go when it fell?`;
+    return `Pecan lost the final ${last.piles.pecan.length} to ${last.piles[last.winner].length}. Where did the last tower's ballots go?`;
   }
 
   const Rules = {PIES, NAMES, DRAW_ORDER, VILLAGE, DOORS, DAYS, MAX_KNOCKS, MAX_SWITCHES, SPOILER, SHORT_VOTERS, SHORT_BALLOTS, SHORT_FULL, PARADOX,
