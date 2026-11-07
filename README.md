@@ -41,6 +41,8 @@ node tests/play.cjs <screenshot-dir>   # needs the server running; plays all fiv
 
 Any day can be picked from the title screen, and **Skip day** moves on during play. Neither touches the ledger.
 
+Playtest evidence lives in [docs/playtests](docs/playtests).
+
 ## License
 
 The game's own code is MIT, see [LICENSE](LICENSE). The files in `web/vendor/` keep their own licenses, listed in [web/vendor/README.md](web/vendor/README.md).
