@@ -1,0 +1,72 @@
+# Tests the rules and layout, plays all five days in headless Chromium on a
+# desktop and a phone profile, and deploys web/ to the arcade as
+# https://second-helping.play.danielstephenson.dev
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests and browser playthrough
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Rules and layout
+        run: |
+          node tests/rules.test.cjs
+          node tests/scene.test.cjs
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm i --no-save playwright@1.61.1
+          npx playwright install --with-deps chromium
+
+      - name: Play all five days
+        run: |
+          mkdir -p smoke-out
+          python3 -m http.server 8771 --bind 127.0.0.1 --directory web > http.log 2>&1 &
+          sleep 1
+          node tests/play.cjs smoke-out
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playthrough
+          path: smoke-out/
+          if-no-files-found: ignore
+
+  deploy:
+    name: Deploy to the arcade
+    needs: test
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.ARCADE_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write the deploy version
+        run: echo "0.1.0+g${GITHUB_SHA::7}" > "$RUNNER_TEMP/arcade-version.txt"
+
+      - uses: Stephenson-Software/arcade-deploy@v1
+        with:
+          slug: second-helping
+          token: ${{ secrets.ARCADE_TOKEN }}
+          site-dir: web
+          version-file: ${{ runner.temp }}/arcade-version.txt
