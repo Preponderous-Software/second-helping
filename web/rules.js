@@ -264,6 +264,13 @@
     return s;
   }
 
+  /* The format of the save under "second-helping.v1": {reached, met}.
+     Contract: bump SAVE_VERSION whenever the stored format changes, teach
+     parseSave to migrate the older format on load, and add a new fixture
+     v<N>-<name>.json in tests/fixtures/saves. Released fixtures never change
+     (tests/saves.test.cjs loads every one of them). */
+  const SAVE_VERSION = 1;
+
   /* Reads any save this game has written, or a damaged one, without throwing.
      Older saves held {satDone, met}: finishing the old Saturday meant the
      player had reached the Doors, which is now Day 3. */
@@ -291,7 +298,7 @@
   }
 
   const Rules = {PIES, NAMES, DRAW_ORDER, VILLAGE, DOORS, DAYS, MAX_KNOCKS, MAX_SWITCHES, SPOILER, SHORT_VOTERS, SHORT_BALLOTS, SHORT_FULL, PARADOX,
-    runCount, knock, saturday, handCount, sunday, sundayHint, paradox, parseSave};
+    runCount, knock, saturday, handCount, sunday, sundayHint, paradox, SAVE_VERSION, parseSave};
   if (typeof module !== "undefined" && module.exports) module.exports = Rules;
   else root.Rules = Rules;
 })(typeof window !== "undefined" ? window : globalThis);
