@@ -1,0 +1,124 @@
+# Builds the release download for a version tag and attaches it to the
+# GitHub release, with a .sha256 sidecar.
+#
+# - push of a tag X.Y.Z: build, check, create the release if it does not
+#   exist yet, upload the assets (--clobber).
+# - workflow_dispatch with a tag: the same, for that existing tag.
+# - workflow_dispatch with no tag: a dry run at the selected commit (build and
+#   check only; the zip is kept as a workflow artifact, nothing is attached).
+# - pull_request touching this file, the build script or package.json: a dry run.
+#
+# The arcade deploy is separate (ci.yml deploys every push to main).
+name: Release
+
+on:
+  push:
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release (X.Y.Z). Leave empty for a dry run."
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - tools/build-release.sh
+      - package.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      SLUG: second-helping
+      TITLE: Second Helping
+    steps:
+      - name: Resolve the tag
+        id: tag
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          tag=""
+          if [ "$EVENT" = "push" ] && [ "$REF_TYPE" = "tag" ]; then tag="$REF_NAME"; fi
+          if [ "$EVENT" = "workflow_dispatch" ] && [ -n "$INPUT_TAG" ]; then tag="$INPUT_TAG"; fi
+          if [ -n "$tag" ]; then
+            if ! printf '%s' "$tag" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::Tag '$tag' is not X.Y.Z"; exit 1
+            fi
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "ref=refs/tags/$tag" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Releasing tag $tag"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Dry run at $GITHUB_SHA"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check the version files
+        id: version
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "package.json: $version"
+          if [ -n "$TAG" ] && [ "$version" != "$TAG" ]; then
+            echo "::error::package.json version $version does not match tag $TAG"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build the download
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          rm -rf dist
+          tools/build-release.sh "$VERSION" dist
+          cd dist
+          for f in *.zip; do sha256sum "$f" > "$f.sha256"; done
+          sha256sum -c ./*.sha256
+          ls -l
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SLUG }}-${{ steps.version.outputs.version }}-release
+          path: dist/
+          if-no-files-found: error
+
+      - name: Create the release if missing and upload the assets
+        if: steps.tag.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --title "$TITLE $VERSION" \
+              --notes "$TITLE $VERSION. Play it in the browser: download $SLUG-$VERSION-web.zip, unzip it and serve the folder (see the README). Each download has a .sha256 checksum."
+          fi
+          gh release upload "$TAG" dist/* --clobber

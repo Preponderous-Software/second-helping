@@ -32,8 +32,7 @@ Keyboard: W A S D or arrows walk, Shift runs, drag to look, E uses, L opens the 
 ## Test it
 
 ```sh
-node tests/rules.test.cjs
-node tests/scene.test.cjs
+npm test                               # rules, layout and released saves (tests/fixtures/saves)
 node tests/play.cjs <screenshot-dir>   # needs the server running; plays all five days on desktop and phone sizes
 ```
 
@@ -42,6 +41,8 @@ node tests/play.cjs <screenshot-dir>   # needs the server running; plays all fiv
 Any day can be picked from the title screen, and **Skip day** moves on during play. Neither touches the ledger.
 
 Playtest evidence lives in [docs/playtests](docs/playtests).
+
+Releases are cut by the fleet's release automation from version tags; the arcade keeps deploying `main`. See [docs/RELEASING.md](docs/RELEASING.md).
 
 ## License
 
